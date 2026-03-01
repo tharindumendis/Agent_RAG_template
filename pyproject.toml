@@ -1,0 +1,44 @@
+# =============================================================================
+# pyproject.toml — Agent_rag (RAG MCP Server)
+# =============================================================================
+
+[build-system]
+requires      = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name            = "agent-rag"
+version         = "1.0.0"
+description     = "RAG MCP server: ChromaDB + sentence-transformers, exposes ingest/search/list/delete tools."
+requires-python = ">=3.10"
+authors         = [{ name = "Tharindumendis" }]
+
+dependencies = [
+    # MCP server
+    "mcp>=1.0.0",
+    "fastmcp>=0.4.0",
+    # Vector store
+    "chromadb>=0.5.0",
+    # Embeddings (local, no API key needed)
+    "sentence-transformers>=3.0.0",
+    # Config
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+rag-server = "server:main"
+
+[project.optional-dependencies]
+gpu = [
+    "torch>=2.0.0",
+]
+
+# ---------------------------------------------------------------------------
+# Hatch build
+# ---------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["rag"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"server.py"   = "server.py"
+"config.yaml" = "config.yaml"

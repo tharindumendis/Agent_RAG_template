@@ -1,0 +1,21 @@
+# =============================================================================
+# Agent_rag — RAG Server Configuration
+# =============================================================================
+
+server:
+  name: "rag-server"
+  transport: "stdio" # "stdio" or "sse"
+  port: 8002 # used only when transport: sse
+  host: "0.0.0.0"
+
+embeddings:
+  model: "all-MiniLM-L6-v2" # sentence-transformers model (downloads on first run)
+  device: "cpu" # "cpu" or "cuda" if GPU available
+
+store:
+  persist_dir: "./chroma_db" # where ChromaDB stores data (relative to server.py)
+  default_collection: "default" # collection used when none is specified
+
+chunking:
+  chunk_size: 500 # max characters per chunk
+  chunk_overlap: 50 # overlap between consecutive chunks

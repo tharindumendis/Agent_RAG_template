@@ -40,26 +40,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-_CONFIG_PATH = Path(os.getenv("RAG_CONFIG", str(Path(__file__).parent / "config.yaml")))
+from rag.config_loader import load_config
 
-
-def _load_config() -> dict:
-    if _CONFIG_PATH.exists():
-        with open(_CONFIG_PATH, encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    return {}
-
-
-_cfg = _load_config()
-_EMBED_MODEL   = _cfg.get("embeddings", {}).get("model", "all-MiniLM-L6-v2")
-_EMBED_DEVICE  = _cfg.get("embeddings", {}).get("device", "cpu")
-_PERSIST_DIR   = str(Path(__file__).parent / _cfg.get("store", {}).get("persist_dir", "chroma_db"))
-_DEFAULT_COL   = _cfg.get("store", {}).get("default_collection", "default")
-_CHUNK_SIZE    = int(_cfg.get("chunking", {}).get("chunk_size", 500))
-_CHUNK_OVERLAP = int(_cfg.get("chunking", {}).get("chunk_overlap", 50))
+_cfg = load_config()
+_EMBED_MODEL   = _cfg.embeddings.model
+_EMBED_DEVICE  = _cfg.embeddings.device
+_PERSIST_DIR   = _cfg.store.persist_dir
+_DEFAULT_COL   = _cfg.store.default_collection
+_CHUNK_SIZE    = _cfg.chunking.chunk_size
+_CHUNK_OVERLAP = _cfg.chunking.chunk_overlap
 
 # ---------------------------------------------------------------------------
 # FastMCP server
@@ -267,9 +256,9 @@ def rag_delete_collection(collection: str) -> str:
 # ---------------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="RAG MCP Server")
-    p.add_argument("--transport", choices=["stdio", "sse"], default="stdio")
-    p.add_argument("--port", type=int, default=8002)
-    p.add_argument("--host", default="0.0.0.0")
+    p.add_argument("--transport", choices=["stdio", "sse"], default=_cfg.server.transport)
+    p.add_argument("--port", type=int, default=_cfg.server.port)
+    p.add_argument("--host", default=_cfg.server.host)
     return p.parse_args()
 
 

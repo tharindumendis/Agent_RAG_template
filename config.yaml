@@ -13,7 +13,7 @@ embeddings:
   device: "cpu" # "cpu" or "cuda" if GPU available
 
 store:
-  persist_dir: "./chroma_db" # where ChromaDB stores data (relative to server.py)
+  persist_dir: "./chroma_db" # Uncomment to specify a custom absolute or relative path for ChromaDB
   default_collection: "default" # collection used when none is specified
 
 chunking:

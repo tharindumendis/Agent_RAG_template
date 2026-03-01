@@ -10,8 +10,19 @@ build-backend = "hatchling.build"
 name            = "agent-rag"
 version         = "1.0.0"
 description     = "RAG MCP server: ChromaDB + sentence-transformers, exposes ingest/search/list/delete tools."
+readme          = "README.md"
 requires-python = ">=3.10"
 authors         = [{ name = "Tharindumendis" }]
+keywords        = ["mcp", "fastmcp", "rag", "chromadb", "llm", "agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 
 dependencies = [
     # MCP server
@@ -26,7 +37,7 @@ dependencies = [
 ]
 
 [project.scripts]
-rag-server = "server:main"
+agent-rag = "server:main"
 
 [project.optional-dependencies]
 gpu = [
@@ -42,3 +53,12 @@ packages = ["rag"]
 [tool.hatch.build.targets.wheel.force-include]
 "server.py"   = "server.py"
 "config.yaml" = "config.yaml"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "rag/",
+    "server.py",
+    "config.yaml",
+    "README.md",
+    "pyproject.toml",
+]

@@ -273,7 +273,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-if __name__ == "__main__":
+def main() -> None:
     args = parse_args()
     logger.info(
         "RAG Server starting | transport=%s | persist=%s | model=%s",
@@ -299,3 +299,7 @@ if __name__ == "__main__":
         mcp.run(transport="sse", host=args.host, port=args.port)
     else:
         mcp.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    main()

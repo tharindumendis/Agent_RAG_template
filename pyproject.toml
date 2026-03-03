@@ -7,8 +7,8 @@ requires      = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name            = "agent-rag"
-version         = "1.0.0"
+name            = "agent-rag-mcp"
+version         = "1.0.2"
 description     = "RAG MCP server: ChromaDB + sentence-transformers, exposes ingest/search/list/delete tools."
 readme          = "README.md"
 requires-python = ">=3.10"
@@ -37,7 +37,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent-rag = "server:main"
+agent-rag-mcp = "server:main"
 
 [project.optional-dependencies]
 gpu = [

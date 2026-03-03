@@ -109,3 +109,10 @@ venv.bak/
 # Project specific
 chroma_db/
 *mcp_server.log
+test_mcp_client.py
+test_mcp_client.py
+test_mcp_race_condition.py
+test_mcp_client.py
+test_rag_concurrency_issue.py
+test_mcp_client.py
+test_mcp_client.py

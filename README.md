@@ -21,10 +21,10 @@ This server exposes several tools for the orchestrator (`Agent_head`) or any oth
 
 ### Running with `uvx`
 
-You can run the MCP server directly. `uvx` will automatically download and run the latest version of the `agent-rag` CLI:
+You can run the MCP server directly. `uvx` will automatically download and run the latest version of the `agent-rag-mcp` CLI:
 
 ```bash
-uvx agent-rag
+uvx agent-rag-mcp
 ```
 
 **Transport Modes**
@@ -33,7 +33,7 @@ By default, the server runs in `stdio` transport mode (designed to be spawned as
 To run it over HTTP using Server-Sent Events (SSE):
 
 ```bash
-uvx agent-rag --transport sse --port 8002 --host 0.0.0.0
+uvx agent-rag-mcp --transport sse --port 8002 --host 0.0.0.0
 ```
 
 ### Specifying a Test Registry (If using TestPyPI)
@@ -41,7 +41,7 @@ uvx agent-rag --transport sse --port 8002 --host 0.0.0.0
 If you published the package to TestPyPI instead of the main PyPI, run it via:
 
 ```bash
-uvx --extra-index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match agent-rag@latest
+uvx --extra-index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match agent-rag-mcp@latest
 ```
 
 ## Integrating with `Agent_head`
@@ -56,7 +56,7 @@ memory:
   # Configure this if backend is set to "rag"
   rag_server:
     command: "uvx"
-    args: ["agent-rag"] # Or ["--from", "/path/to/local/Agent_rag", "agent-rag"] for local development
+    args: ["agent-rag-mcp"] # Or ["--from", "/path/to/local/Agent_rag", "agent-rag-mcp"] for local development
     collection: "agent_memory"
 ```
 
@@ -70,7 +70,7 @@ If you are developing this package locally:
    ```
 2. **Run locally**:
    ```bash
-   uv run agent-rag
+   uv run agent-rag-mcp
    ```
 3. **Build the package**:
    ```bash

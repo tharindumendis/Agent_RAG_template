@@ -9,8 +9,8 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "agent-rag"
-version = "1.0.0"
+name = "agent-rag-mcp"
+version = "1.0.2"
 source = { editable = "." }
 dependencies = [
     { name = "chromadb" },

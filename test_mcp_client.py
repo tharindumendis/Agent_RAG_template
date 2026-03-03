@@ -1,4 +1,4 @@
-"""
+r"""
 test_mcp_client.py
 ------------------
 Direct MCP stdio client test — bypasses Agent_head entirely.
@@ -9,7 +9,7 @@ Run from Agent_head directory:
     .venv\Scripts\python.exe ..\Agent_rag\test_mcp_client.py
 
 Or from Agent_rag directory:
-    ..\\Agent_head\\.venv\\Scripts\\python.exe test_mcp_client.py
+    ..\Agent_head\.venv\Scripts\python.exe test_mcp_client.py
 """
 
 import asyncio
@@ -73,6 +73,51 @@ async def run():
             result = await session.call_tool(
                 "rag_search",
                 {"query": "testing", "collection": TEST_COL},
+            )
+            elapsed = time.time() - t_call
+            content = result.content[0].text if result.content else "(empty)"
+            print(f"    Result ({elapsed:.1f}s): {content[:200]}")
+
+            # Test string ingestion with metadata
+            print(f"\n[5.1] Calling rag_ingest with raw string and metadata ...")
+            string_source = "This is a secret string source containing classified information about Project Blue."
+            t_call = time.time()
+            result = await session.call_tool(
+                "rag_ingest",
+                {
+                    "source": string_source, 
+                    "collection": TEST_COL,
+                    "metadata": {"test_type": "string_ingest", "project": "Blue"}
+                },
+            )
+            elapsed = time.time() - t_call
+            content = result.content[0].text if result.content else "(empty)"
+            print(f"    Result ({elapsed:.1f}s): {content[:200]}")
+
+            # Test search with metadata filter
+            print(f"\n[5.2] Calling rag_search with metadata filter ...")
+            t_call = time.time()
+            result = await session.call_tool(
+                "rag_search",
+                {
+                    "query": "classified information project", 
+                    "collection": TEST_COL,
+                    "metadata_filter": {"project": "Blue"}
+                },
+            )
+            elapsed = time.time() - t_call
+            content = result.content[0].text if result.content else "(empty)"
+            print(f"    Result ({elapsed:.1f}s): {content[:200]}")
+
+            # Test delete items with metadata
+            print(f"\n[5.3] Calling rag_delete_items with metadata filter ...")
+            t_call = time.time()
+            result = await session.call_tool(
+                "rag_delete_items",
+                {
+                    "collection": TEST_COL,
+                    "metadata_filter": {"test_type": "string_ingest"}
+                },
             )
             elapsed = time.time() - t_call
             content = result.content[0].text if result.content else "(empty)"

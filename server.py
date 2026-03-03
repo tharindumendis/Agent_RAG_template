@@ -64,6 +64,7 @@ def rag_ingest(
     source: str,
     collection: str = _DEFAULT_COL,
     chunk_size: int = _CHUNK_SIZE,
+    metadata: dict | None = None,
 ) -> str:
     """
     Ingest a document into the RAG knowledge base.
@@ -75,6 +76,7 @@ def rag_ingest(
                     - Raw text   -> used directly (short strings that aren't valid paths)
         collection: Name of the ChromaDB collection to store into. Default: "default"
         chunk_size: Characters per chunk. Default: 500
+        metadata:   Metadata to attach to each chunk. Default: None
 
     Returns:
         Summary of how many chunks were ingested.
@@ -133,7 +135,8 @@ def rag_ingest(
 
     try:
         n = store.upsert_chunks(chunks, embeddings,
-                                collection_name=collection, persist_dir=_PERSIST_DIR)
+                                collection_name=collection, persist_dir=_PERSIST_DIR,
+                                metadata=metadata)
     except Exception as exc:
         logger.exception("[rag_ingest] Store upsert failed.")
         return f"ERROR storing chunks: {exc}"
@@ -155,6 +158,7 @@ def rag_search(
     query: str,
     collection: str = _DEFAULT_COL,
     top_k: int = 5,
+    metadata_filter: dict | None = None,
 ) -> str:
     """
     Search the RAG knowledge base for content relevant to a query.
@@ -163,6 +167,7 @@ def rag_search(
         query:      The search query (natural language).
         collection: ChromaDB collection to search. Default: "default"
         top_k:      Number of top results to return. Default: 5
+        metadata_filter: Filter to apply to the search results. Default: None
 
     Returns:
         Formatted string with the most relevant text chunks and their sources.
@@ -187,6 +192,7 @@ def rag_search(
         hits = store.query_collection(
             q_embedding, collection_name=collection,
             top_k=top_k, persist_dir=_PERSIST_DIR,
+            metadata_filter=metadata_filter,
         )
     except Exception as exc:
         logger.exception("[rag_search] Query failed.")
@@ -252,6 +258,39 @@ def rag_delete_collection(collection: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Tool 5: rag_delete_items  (sync)
+# ---------------------------------------------------------------------------
+@mcp.tool()
+def rag_delete_items(
+    collection: str,
+    metadata_filter: dict,
+) -> str:
+    """
+    Delete specific items from a RAG collection matching a metadata filter.
+
+    Args:
+        collection: Name of the collection to delete from.
+        metadata_filter: Dictionary specifying the metadata to filter by.
+    """
+    from rag import store
+
+    if not metadata_filter:
+        return "ERROR: metadata_filter is required. To delete the entire collection, use rag_delete_collection."
+
+    try:
+        deleted = store.delete_items(
+            collection_name=collection, metadata_filter=metadata_filter, persist_dir=_PERSIST_DIR
+        )
+    except Exception as exc:
+        return f"ERROR deleting items from collection '{collection}': {exc}"
+
+    if deleted >= 0:
+        return f"Deleted {deleted} items from collection '{collection}' matching filter {metadata_filter}."
+    else:
+        return f"Failed to delete items from collection '{collection}' (does it exist?)."
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
@@ -269,19 +308,16 @@ def main() -> None:
         args.transport, _PERSIST_DIR, _EMBED_MODEL,
     )
 
-    # Background pre-warm: load model + ChromaDB BEFORE first tool call,
-    # but after mcp.run() starts (so the MCP handshake doesn't time out).
-    def _bg_prewarm() -> None:
-        try:
-            from rag.embedder import prewarm
-            prewarm(model_name=_EMBED_MODEL, device=_EMBED_DEVICE)
-            from rag.store import get_client
-            get_client(persist_dir=_PERSIST_DIR)
-            logger.info("Background pre-warm complete — RAG server fully ready.")
-        except Exception as exc:
-            logger.error("Background pre-warm failed: %s", exc)
+    logger.info("Initializing Chroma DB & Embedder in main thread to avoid deadlocks...")
+    try:
+        from rag.embedder import prewarm
+        prewarm(model_name=_EMBED_MODEL, device=_EMBED_DEVICE)
+        from rag.store import get_client
+        get_client(persist_dir=_PERSIST_DIR)
+        logger.info("Pre-warm complete — RAG server fully ready.")
+    except Exception as exc:
+        logger.error("Pre-warm failed: %s", exc)
 
-    threading.Thread(target=_bg_prewarm, daemon=True, name="rag-prewarm").start()
     logger.info("RAG Server MCP transport starting ...")
 
     if args.transport == "sse":

@@ -3,16 +3,34 @@ rag/config_loader.py
 --------------------
 Loads and validates config.yaml into typed dataclasses.
 Import and use `load_config()` anywhere in the project.
+
+Config resolution priority
+---------------------------
+1. Explicit `config_path` argument passed in code
+2. RAG_CONFIG environment variable
+3. OS user-config dir  (created from bundled default on first run)
+       Windows : %LOCALAPPDATA%\\agent_rag\\config.yaml
+       macOS   : ~/Library/Application Support/agent_rag/config.yaml
+       Linux   : $XDG_CONFIG_HOME/agent_rag/config.yaml  (~/.config/…)
+4. <cwd>/config.yaml
+5. Bundled package default  (Agent_rag/config.yaml next to server.py)
+
+On first run (priority-3 path missing) the bundled default is copied there
+so users can easily edit it without touching the package installation.
 """
 
 from __future__ import annotations
 
+import logging
 import os
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Dataclass models
@@ -61,29 +79,90 @@ class AppConfig:
 
 
 # ---------------------------------------------------------------------------
-# DB Path Fallback
+# OS-specific paths
 # ---------------------------------------------------------------------------
+
+
+def get_app_config_dir() -> Path:
+    """
+    Returns the OS-specific user-editable config directory for agent_rag.
+
+    - Windows : %LOCALAPPDATA%\\agent_rag
+    - macOS   : ~/Library/Application Support/agent_rag
+    - Linux   : $XDG_CONFIG_HOME/agent_rag  (default ~/.config/agent_rag)
+    """
+    if os.name == "nt":  # Windows
+        base = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":  # macOS
+        base = Path.home() / "Library" / "Application Support"
+    else:  # Linux / other POSIX
+        base = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
+
+    config_dir = base / "agent_rag"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir
+
 
 def get_default_db_path() -> Path:
     """
-    Returns a persistent, OS-agnostic path for the ChromaDB store.
-    - Windows: C:/Users/<User>/AppData/Local/agent_rag/db
-    - macOS: ~/Library/Application Support/agent_rag/db
-    - Linux: ~/.local/share/agent_rag/db
+    Returns a persistent, OS-agnostic path for the ChromaDB vector store.
+
+    - Windows : %LOCALAPPDATA%\\agent_rag\\vector_store
+    - macOS   : ~/Library/Application Support/agent_rag/vector_store
+    - Linux   : $XDG_DATA_HOME/agent_rag/vector_store  (~/.local/share/…)
     """
     if os.name == "nt":  # Windows
-        base_dir = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-    elif os.name == "posix":
-        if "darwin" in sys.platform:  # macOS
-            base_dir = Path.home() / "Library" / "Application Support"
-        else:  # Linux
-            base_dir = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    else:
-        base_dir = Path.home()
+        base = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    elif sys.platform == "darwin":  # macOS
+        base = Path.home() / "Library" / "Application Support"
+    else:  # Linux
+        base = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 
-    final_path = base_dir / "agent_rag" / "vector_store"
-    final_path.mkdir(parents=True, exist_ok=True)
-    return final_path
+    db_path = base / "agent_rag" / "vector_store"
+    db_path.mkdir(parents=True, exist_ok=True)
+    return db_path
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap — copy bundled default config to OS user-config dir on first run
+# ---------------------------------------------------------------------------
+
+# The bundled default sits next to server.py (package root)
+_PACKAGE_DEFAULT_CONFIG = Path(__file__).parent.parent / "config.yaml"
+
+
+def bootstrap_config() -> Path:
+    """
+    Ensures a user-editable config.yaml exists in the OS config directory.
+
+    - If it already exists  → does nothing, returns the existing path.
+    - If it doesn't exist   → copies the bundled default there and logs a
+                               message so the user knows where to find it.
+
+    Returns the path to the user config file (whether new or pre-existing).
+    """
+    user_config = get_app_config_dir() / "config.yaml"
+
+    if user_config.exists():
+        return user_config
+
+    # First run — copy the bundled default
+    if _PACKAGE_DEFAULT_CONFIG.exists():
+        shutil.copy2(_PACKAGE_DEFAULT_CONFIG, user_config)
+        logger.info(
+            "[agent_rag] First-run bootstrap: config copied to %s\n"
+            "            Edit that file to customise your RAG server settings.",
+            user_config,
+        )
+    else:
+        logger.warning(
+            "[agent_rag] Bundled default config not found at %s; "
+            "skipping bootstrap. User config path: %s",
+            _PACKAGE_DEFAULT_CONFIG,
+            user_config,
+        )
+
+    return user_config
 
 
 # ---------------------------------------------------------------------------
@@ -93,41 +172,60 @@ def get_default_db_path() -> Path:
 
 def load_config(config_path: str | None = None) -> AppConfig:
     """
-    Priority:
-    1. config_path (passed to function)
-    2. RAG_CONFIG (environment variable)
-    3. ./config.yaml (Current Working Directory)
-    4. ../config.yaml (Package Root fallback)
+    Load the RAG server config.  Resolution priority:
+
+    1. ``config_path``  — explicit path passed by the caller
+    2. ``RAG_CONFIG``   — environment variable (used when Agent_head spawns
+                          the server with a custom override config)
+    3. OS user-config   — bootstrapped on first run from the bundled default
+       ``%LOCALAPPDATA%\\agent_rag\\config.yaml``  (Windows)
+       ``~/Library/Application Support/agent_rag/config.yaml``  (macOS)
+       ``~/.config/agent_rag/config.yaml``  (Linux)
+    4. ``<cwd>/config.yaml``           — dev / monorepo convenience
+    5. ``<package_root>/config.yaml``  — bundled package fallback
     """
-
-    # Define potential locations
     env_path = os.getenv("RAG_CONFIG")
+    user_config_path = bootstrap_config()
     cwd_path = Path.cwd() / "config.yaml"
-    package_root_path = Path(__file__).parent.parent / "config.yaml"
+    package_root_path = _PACKAGE_DEFAULT_CONFIG
 
-    # Select the first one that exists
     if config_path:
         final_path = Path(config_path)
     elif env_path:
         final_path = Path(env_path)
+    elif user_config_path.exists():
+        final_path = user_config_path
     elif cwd_path.exists():
         final_path = cwd_path
     else:
         final_path = package_root_path
 
-    # Final check
     if not final_path.exists():
         raise FileNotFoundError(
             f"Config file not found. Checked:\n"
-            f"- Explicit path: {config_path}\n"
-            f"- Env Var (RAG_CONFIG): {env_path}\n"
-            f"- Current Directory: {cwd_path}\n"
-            f"- Package Fallback: {package_root_path}\n"
-            f"Please ensure a 'config.yaml' exists."
+            f"  1. Explicit path       : {config_path}\n"
+            f"  2. Env var RAG_CONFIG  : {env_path}\n"
+            f"  3. OS user-config      : {user_config_path}\n"
+            f"  4. CWD                 : {cwd_path}\n"
+            f"  5. Package default     : {package_root_path}\n"
+            f"Please ensure a 'config.yaml' exists at one of the above locations."
         )
+
+    logger.info("[agent_rag] Using config: %s", final_path.resolve())
 
     with open(final_path, encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
+
+    # Resolve relative paths in the config relative to the config file's own
+    # directory, not the CWD — avoids surprises when launched from different dirs.
+    config_dir = final_path.resolve().parent
+
+    def resolve_path(p: str) -> str:
+        """Make a relative path absolute, anchored to the config file's dir."""
+        path = Path(p).expanduser()
+        if not path.is_absolute():
+            path = (config_dir / path).resolve()
+        return str(path)
 
     # --- Server ---
     server_raw = raw.get("server", {})
@@ -147,9 +245,9 @@ def load_config(config_path: str | None = None) -> AppConfig:
 
     # --- Store ---
     store_raw = raw.get("store", {})
-    persist_dir = store_raw.get("persist_dir")
+    persist_dir = store_raw.get("persist_dir", "")
     if persist_dir:
-        resolved_persist = str(Path(persist_dir).expanduser().resolve())
+        resolved_persist = resolve_path(persist_dir)
     else:
         resolved_persist = str(get_default_db_path())
 

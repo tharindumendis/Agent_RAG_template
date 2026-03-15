@@ -14,6 +14,10 @@ try:
     from watchdog.events import FileSystemEventHandler
     WATCHDOG_AVAILABLE = True
 except ImportError:
+    Observer = None  # type: ignore[assignment,misc]
+    # Fallback so RagEventHandler can always be defined at module level
+    class FileSystemEventHandler:  # type: ignore[no-redef]
+        """No-op stub used when watchdog is not installed."""
     WATCHDOG_AVAILABLE = False
 
 logger = logging.getLogger(__name__)

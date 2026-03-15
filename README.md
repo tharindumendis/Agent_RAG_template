@@ -77,5 +77,3 @@ If you are developing this package locally:
    ```bash
    uv build
    ```
-
-change 1

@@ -34,6 +34,8 @@ dependencies = [
     "sentence-transformers>=3.0.0",
     # Config
     "pyyaml>=6.0",
+    # Directory Watching
+    "watchdog>=4.0.0",
 ]
 
 [project.scripts]

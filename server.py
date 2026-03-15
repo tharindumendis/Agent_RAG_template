@@ -318,13 +318,43 @@ def main() -> None:
     except Exception as exc:
         logger.error("Pre-warm failed: %s", exc)
 
+    # -----------------------------------------------------------------------
+    # Directory Watcher
+    # -----------------------------------------------------------------------
+    watcher = None
+    if getattr(_cfg, "watch", None) and getattr(_cfg.watch, "enabled", False) and getattr(_cfg.watch, "directories", []):
+        try:
+            from rag.watcher import DirectoryWatcher
+            logger.info("Starting watcher for %d directories...", len(_cfg.watch.directories))
+            
+            def ingest_cb(path: str, collection: str):
+                rag_ingest(source=path, collection=collection, chunk_size=_CHUNK_SIZE)
+                
+            def delete_cb(collection: str, md_filter: dict):
+                rag_delete_items(collection=collection, metadata_filter=md_filter)
+                
+            watcher = DirectoryWatcher(ingest_cb, delete_cb)
+            for directory in _cfg.watch.directories:
+                watcher.add_directory(directory)
+                
+            watcher.start()
+        except ImportError as exc:
+            logger.warning("Watcher not started (watchdog package missing): %s", exc)
+        except Exception as exc:
+            logger.error("Failed to initialize directory watcher: %s", exc)
+
     logger.info("RAG Server MCP transport starting ...")
 
-    if args.transport == "sse":
-        mcp.run(transport="sse", host=args.host, port=args.port)
-    else:
-        mcp.run(transport="stdio")
-
+    try:
+        if args.transport == "sse":
+            mcp.run(transport="sse", host=args.host, port=args.port)
+        else:
+            mcp.run(transport="stdio")
+    except KeyboardInterrupt:
+        logger.info("Shutting down RAG Server...")
+    finally:
+        if watcher:
+            watcher.stop()
 
 if __name__ == "__main__":
     main()

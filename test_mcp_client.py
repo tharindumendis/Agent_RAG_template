@@ -21,7 +21,7 @@ from pathlib import Path
 RAG_PYTHON = str(Path(__file__).parent / ".venv" / "Scripts" / "python.exe")
 RAG_SERVER = str(Path(__file__).parent / "server.py")
 TEST_FILE  = str(Path(__file__).parent.parent / "Agent_head" / "test.md")
-TEST_COL   = "mcp-test-temp"
+TEST_COL   = "docs"
 
 
 async def run():
@@ -72,7 +72,7 @@ async def run():
             t_call = time.time()
             result = await session.call_tool(
                 "rag_search",
-                {"query": "testing", "collection": TEST_COL},
+                {"query": "run localy", "collection": TEST_COL},
             )
             elapsed = time.time() - t_call
             content = result.content[0].text if result.content else "(empty)"

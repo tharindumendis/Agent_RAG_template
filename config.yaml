@@ -19,3 +19,8 @@ store:
 chunking:
   chunk_size: 500 # max characters per chunk
   chunk_overlap: 50 # overlap between consecutive chunks
+
+watch:
+  enabled: true
+  directories:
+    - "./docs" # folder name will be used as the collection name

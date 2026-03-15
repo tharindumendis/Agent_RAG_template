@@ -38,8 +38,8 @@ uvx agent-rag-mcp --transport sse --port 8002 --host 0.0.0.0
 
 ### Specifying a Test Registry (If using TestPyPI)
 
-If you published the package to TestPyPI instead of the main PyPI, run it via:
-
+If you published the package to:
+ TestPyPI instead of the main PyPI, run it via
 ```bash
 uvx --extra-index-url https://test.pypi.org/simple/ --index-strategy unsafe-best-match agent-rag-mcp@latest
 ```

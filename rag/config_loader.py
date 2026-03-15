@@ -46,11 +46,18 @@ class ChunkingConfig:
 
 
 @dataclass
+class WatchConfig:
+    enabled: bool = False
+    directories: list[str] = field(default_factory=list)
+
+
+@dataclass
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     embeddings: EmbeddingsConfig = field(default_factory=EmbeddingsConfig)
     store: StoreConfig = field(default_factory=StoreConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+    watch: WatchConfig = field(default_factory=WatchConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -158,4 +165,11 @@ def load_config(config_path: str | None = None) -> AppConfig:
         chunk_overlap=int(chunk_raw.get("chunk_overlap", 50)),
     )
 
-    return AppConfig(server=server, embeddings=embeddings, store=store, chunking=chunking)
+    # --- Watch ---
+    watch_raw = raw.get("watch", {})
+    watch = WatchConfig(
+        enabled=watch_raw.get("enabled", False),
+        directories=watch_raw.get("directories", []),
+    )
+
+    return AppConfig(server=server, embeddings=embeddings, store=store, chunking=chunking, watch=watch)

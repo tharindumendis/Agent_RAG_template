@@ -70,12 +70,21 @@ class WatchConfig:
 
 
 @dataclass
+class LoggingConfig:
+    level: str = "INFO"
+    file_path: str = "logs/rag_server.log"
+    max_file_size: int = 10485760  # 10MB
+    backup_count: int = 5
+
+
+@dataclass
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     embeddings: EmbeddingsConfig = field(default_factory=EmbeddingsConfig)
     store: StoreConfig = field(default_factory=StoreConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     watch: WatchConfig = field(default_factory=WatchConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -270,4 +279,13 @@ def load_config(config_path: str | None = None) -> AppConfig:
         directories=watch_raw.get("directories", []),
     )
 
-    return AppConfig(server=server, embeddings=embeddings, store=store, chunking=chunking, watch=watch)
+    # --- Logging ---
+    logging_raw = raw.get("logging", {})
+    logging_config = LoggingConfig(
+        level=logging_raw.get("level", "INFO"),
+        file_path=resolve_path(logging_raw.get("file_path", "./logs/rag_server.log")),
+        max_file_size=int(logging_raw.get("max_file_size", 10485760)),
+        backup_count=int(logging_raw.get("backup_count", 5)),
+    )
+
+    return AppConfig(server=server, embeddings=embeddings, store=store, chunking=chunking, watch=watch, logging=logging_config)

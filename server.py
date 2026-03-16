@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import logging.handlers
 import os
 import sys
 import time
@@ -31,18 +32,69 @@ import yaml
 from mcp.server.fastmcp import FastMCP
 
 # ---------------------------------------------------------------------------
-# Logging — always goes to stderr (stdout is for MCP protocol)
+
+
+def setup_logging(cfg) -> None:
+    """
+    Set up logging based on the configuration.
+    Logs to both stderr (for MCP protocol compatibility) and file with rotation.
+    """
+    # Get log level from config
+    level_str = getattr(cfg.logging, 'level', 'INFO').upper()
+    level = getattr(logging, level_str, logging.INFO)
+
+    # Create formatters
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+    )
+
+    # Root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+
+    # Remove any existing handlers to avoid duplicates
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Console handler (stderr for MCP compatibility)
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    # File handler with rotation
+    log_file = getattr(cfg.logging, 'file_path', './logs/rag_server.log')
+    max_bytes = getattr(cfg.logging, 'max_file_size', 10485760)  # 10MB default
+    backup_count = getattr(cfg.logging, 'backup_count', 5)
+
+    # Ensure log directory exists
+    log_dir = Path(log_file).parent
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding='utf-8'
+    )
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+    # Set up specific loggers
+    logging.getLogger('chromadb').setLevel(logging.WARNING)  # Reduce ChromaDB noise
+    logging.getLogger('sentence_transformers').setLevel(logging.WARNING)  # Reduce embedding model noise
+
+
 # ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    stream=sys.stderr,
-)
-logger = logging.getLogger(__name__)
 
 from rag.config_loader import load_config
 
 _cfg = load_config()
+setup_logging(_cfg)  # Set up logging based on config
+
+logger = logging.getLogger(__name__)
+
 _EMBED_MODEL   = _cfg.embeddings.model
 _EMBED_DEVICE  = _cfg.embeddings.device
 _PERSIST_DIR   = _cfg.store.persist_dir

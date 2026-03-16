@@ -116,3 +116,4 @@ test_mcp_client.py
 test_rag_concurrency_issue.py
 test_mcp_client.py
 test_mcp_client.py
+*.log

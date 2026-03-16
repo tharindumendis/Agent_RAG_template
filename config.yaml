@@ -24,3 +24,9 @@ watch:
   enabled: true
   directories:
     - "./docs" # folder name will be used as the collection name
+
+logging:
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file_path: "./logs/rag_server.log" # log file path (relative to config or absolute)
+  max_file_size: 10485760 # 10MB in bytes
+  backup_count: 5 # number of backup files to keep

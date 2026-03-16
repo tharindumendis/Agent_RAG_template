@@ -17,11 +17,11 @@ import sys
 import time
 from pathlib import Path
 
-# Use Agent_head's venv (the caller's python)
-RAG_PYTHON = str(Path(__file__).parent / ".venv" / "Scripts" / "python.exe")
-RAG_SERVER = str(Path(__file__).parent / "server.py")
-TEST_FILE  = str(Path(__file__).parent.parent / "Agent_head" / "test.md")
-TEST_COL   = "docs"
+# Use uvx to run the published package
+RAG_COMMAND = "uvx"
+RAG_ARGS = ["agent-rag-mcp"]
+TEST_FILE  = str(Path(__file__).parent / "README.md")  # Use local README for testing
+TEST_COL   = "test_collection"
 
 
 async def run():
@@ -29,20 +29,22 @@ async def run():
     from mcp.client.stdio import stdio_client
 
     params = StdioServerParameters(
-        command=RAG_PYTHON,
-        args=[RAG_SERVER],
+        command=RAG_COMMAND,
+        args=RAG_ARGS,
         env=None,
     )
 
     print(f"\n[1] Spawning RAG server subprocess ...")
-    print(f"    python : {RAG_PYTHON}")
-    print(f"    server : {RAG_SERVER}")
+    print(f"    command: {RAG_COMMAND}")
+    print(f"    args: {RAG_ARGS}")
 
     t0 = time.time()
 
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
-            await session.initialize()
+            print(f"[1.5] Waiting for server to start...")
+            await asyncio.sleep(5)  # Give server time to initialize
+            await asyncio.wait_for(session.initialize(), timeout=30.0)  # Add timeout
             print(f"[2] MCP handshake complete in {time.time()-t0:.2f}s")
 
             tools = await session.list_tools()
@@ -51,6 +53,17 @@ async def run():
 
             assert "rag_ingest" in tool_names, "rag_ingest not found!"
             assert "rag_search" in tool_names, "rag_search not found!"
+            assert "rag_list_collections" in tool_names, "rag_list_collections not found!"
+            assert "rag_delete_collection" in tool_names, "rag_delete_collection not found!"
+            assert "rag_delete_items" in tool_names, "rag_delete_items not found!"
+
+            # Test rag_list_collections
+            print(f"\n[3.1] Calling rag_list_collections ...")
+            t_call = time.time()
+            result = await session.call_tool("rag_list_collections", {})
+            elapsed = time.time() - t_call
+            content = result.content[0].text if result.content else "(empty)"
+            print(f"    Result ({elapsed:.1f}s): {content[:200]}")
 
             # Test rag_ingest
             print(f"\n[4] Calling rag_ingest on '{Path(TEST_FILE).name}' ...")

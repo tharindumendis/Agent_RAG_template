@@ -9,8 +9,19 @@ server:
   host: "0.0.0.0"
 
 embeddings:
-  model: "all-MiniLM-L6-v2" # sentence-transformers model (downloads on first run)
-  device: "cpu" # "cpu" or "cuda" if GPU available
+  provider: "ollama"  # "onnx" or "ollama"
+  
+  # ONNX provider settings (used when provider: "onnx")
+  model: "all-MiniLM-L6-v2"  # sentence-transformers model (downloads on first run)
+  device: "cpu"  # "cpu" or "cuda" if GPU available
+  
+  # Ollama provider settings (used when provider: "ollama")
+  ollama_base_url: "http://localhost:11434"  # Ollama server endpoint
+  ollama_model: "nomic-embed-text"  # lightweight Ollama embedding model
+  
+  # Other options:
+  #   ollama_model: "all-minilm:latest"    # alternative
+  #   ollama_model: "mxbai-embed-large"    # larger but more accurate
 
 store:
   persist_dir: "./chroma_db" # Uncomment to specify a custom absolute or relative path for ChromaDB

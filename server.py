@@ -355,9 +355,18 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    
+    # Get provider info for logging
+    provider = getattr(_cfg.embeddings, 'provider', 'onnx').lower()
+    if provider == 'ollama':
+        ollama_model = getattr(_cfg.embeddings, 'ollama_model', 'nomic-embed-text')
+        embed_info = f"Ollama ({ollama_model})"
+    else:
+        embed_info = f"ONNX ({_EMBED_MODEL})"
+    
     logger.info(
-        "RAG Server starting | transport=%s | persist=%s | model=%s",
-        args.transport, _PERSIST_DIR, _EMBED_MODEL,
+        "RAG Server starting | transport=%s | persist=%s | embedder=%s",
+        args.transport, _PERSIST_DIR, embed_info,
     )
 
     logger.info("Initializing Chroma DB & Embedder in main thread to avoid deadlocks...")

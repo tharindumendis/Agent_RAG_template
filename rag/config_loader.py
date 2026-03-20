@@ -47,8 +47,11 @@ class ServerConfig:
 
 @dataclass
 class EmbeddingsConfig:
-    model: str = "all-MiniLM-L6-v2"
-    device: str = "cpu"
+    provider: str = "onnx"  # "onnx" or "ollama"
+    model: str = "all-MiniLM-L6-v2"  # used by sentence-transformers/ONNX
+    device: str = "cpu"  # "cpu" or "cuda" for ONNX
+    ollama_base_url: str = "http://localhost:11434"  # Ollama server endpoint
+    ollama_model: str = "nomic-embed-text"  # lightweight Ollama embedding model
 
 
 @dataclass
@@ -248,8 +251,11 @@ def load_config(config_path: str | None = None) -> AppConfig:
     # --- Embeddings ---
     emb_raw = raw.get("embeddings", {})
     embeddings = EmbeddingsConfig(
+        provider=emb_raw.get("provider", "onnx"),
         model=emb_raw.get("model", "all-MiniLM-L6-v2"),
         device=emb_raw.get("device", "cpu"),
+        ollama_base_url=emb_raw.get("ollama_base_url", "http://localhost:11434"),
+        ollama_model=emb_raw.get("ollama_model", "nomic-embed-text"),
     )
 
     # --- Store ---

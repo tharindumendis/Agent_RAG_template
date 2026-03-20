@@ -4,12 +4,12 @@ This guide explains how to install `agent-rag-mcp` with optimal dependencies for
 
 ## Quick Start: Which Installation Path?
 
-| **Use Case** | **Command** | **Size** | **Needs** |
-|---|---|---|---|
-| **Ollama users** (recommended for light deployments) | `uv install agent-rag-mcp[ollama]` | ~50 MB | Ollama running locally |
-| **Local embeddings** (offline, no external services) | `uv install agent-rag-mcp[local]` | ~300 MB | Stable CPU environment |
-| **Everything** (all providers + GPU support) | `uv install agent-rag-mcp[all]` | **~2 GB** | GPU (NVIDIA only) |
-| **Minimal** (bare install, manual config) | `uv install agent-rag-mcp` | ~50 MB | Not recommended |
+| **Use Case**                                         | **Command**                        | **Size**  | **Needs**              |
+| ---------------------------------------------------- | ---------------------------------- | --------- | ---------------------- |
+| **Ollama users** (recommended for light deployments) | `uv install agent-rag-mcp[ollama]` | ~50 MB    | Ollama running locally |
+| **Local embeddings** (offline, no external services) | `uv install agent-rag-mcp[local]`  | ~300 MB   | Stable CPU environment |
+| **Everything** (all providers + GPU support)         | `uv install agent-rag-mcp[all]`    | **~2 GB** | GPU (NVIDIA only)      |
+| **Minimal** (bare install, manual config)            | `uv install agent-rag-mcp`         | ~50 MB    | Not recommended        |
 
 ---
 
@@ -26,14 +26,16 @@ python Agent_rag/server.py
 ```
 
 **Config** (`Agent_rag/config.yaml`):
+
 ```yaml
 embeddings:
   provider: "ollama"
   ollama_base_url: "http://localhost:11434"
-  ollama_model: "nomic-embed-text"  # lightweight, fast
+  ollama_model: "nomic-embed-text" # lightweight, fast
 ```
 
 **Benefits:**
+
 - ✅ Minimal installation (~50 MB)
 - ✅ No CUDA/PyTorch overhead
 - ✅ Works on CPU-only machines
@@ -41,6 +43,7 @@ embeddings:
 - ⚠️ Requires Ollama to be running
 
 **Start Ollama:**
+
 ```bash
 # On Windows/Mac/Linux
 ollama serve
@@ -62,14 +65,16 @@ python Agent_rag/server.py
 ```
 
 **Config** (`Agent_rag/config.yaml`):
+
 ```yaml
 embeddings:
   provider: "onnx"
-  model: "all-MiniLM-L6-v2"  # auto-downloads on first run
+  model: "all-MiniLM-L6-v2" # auto-downloads on first run
   device: "cpu"
 ```
 
 **Benefits:**
+
 - ✅ No external service dependency (Ollama not required)
 - ✅ Self-contained embedding engine
 - ✅ Fast on modern CPUs
@@ -89,14 +94,16 @@ python Agent_rag/server.py
 ```
 
 **Config** (`Agent_rag/config.yaml`):
+
 ```yaml
 embeddings:
   provider: "onnx"
   model: "all-MiniLM-L6-v2"
-  device: "cuda"  # GPU mode
+  device: "cuda" # GPU mode
 ```
 
 **Benefits:**
+
 - ✅ Fastest embeddings (~10x faster than CPU)
 - ✅ GPU-optimized sentence-transformers
 - ⚠️ Large download (~1.2 GB with CUDA packages)
@@ -112,6 +119,7 @@ uv install agent-rag-mcp[all]
 ```
 
 Includes:
+
 - ONNX runtime (local CPU embeddings)
 - PyTorch + sentence-transformers (GPU embeddings)
 - All providers available
@@ -120,40 +128,48 @@ Includes:
 
 ## Comparison Table
 
-| Feature | Ollama | Local (ONNX) | GPU (PyTorch) |
-|---------|--------|--------------|---------------|
-| **Installation size** | 50 MB | 300 MB | 1.2 GB |
-| **Embed speed** | Medium (depends on Ollama) | Fast | Very fast |
-| **External service** | ✅ Ollama server | ❌ None | ❌ None |
-| **GPU required** | ❌ No | ❌ No | ✅ Yes |
-| **CPU-only friendly** | ✅ Yes | ✅ Yes | ⚠️ Works but slow |
-| **Production ready** | ✅ Yes | ✅ Yes | ✅ Yes |
+| Feature               | Ollama                     | Local (ONNX) | GPU (PyTorch)     |
+| --------------------- | -------------------------- | ------------ | ----------------- |
+| **Installation size** | 50 MB                      | 300 MB       | 1.2 GB            |
+| **Embed speed**       | Medium (depends on Ollama) | Fast         | Very fast         |
+| **External service**  | ✅ Ollama server           | ❌ None      | ❌ None           |
+| **GPU required**      | ❌ No                      | ❌ No        | ✅ Yes            |
+| **CPU-only friendly** | ✅ Yes                     | ✅ Yes       | ⚠️ Works but slow |
+| **Production ready**  | ✅ Yes                     | ✅ Yes       | ✅ Yes            |
 
 ---
 
 ## Troubleshooting
 
 ### Problem: "ImportError: No module named torch"
+
 **Solution:** You're using ONNX provider but didn't install it.
+
 ```bash
 uv install agent-rag-mcp[local]
 ```
 
 ### Problem: "ConnectionRefusedError: Ollama not running"
+
 **Solution:** Start Ollama first:
+
 ```bash
 ollama serve
 ```
 
 ### Problem: Large CUDA packages downloading
+
 **Solution:** Switch to Ollama or local ONNX:
+
 ```bash
 uv pip uninstall torch nvidia-cuda* -y
 uv install agent-rag-mcp[ollama]
 ```
 
 ### Problem: Embeddings slow on startup
+
 **Solution:** Pre-warm the embedder (the code does this automatically, but you can test):
+
 ```bash
 python -c "from agent_rag.rag.embedder import OnnxEmbedder; OnnxEmbedder().prewarm()"
 ```
@@ -185,6 +201,7 @@ This will free up ~1.2 GB of disk space and ~1 GB of RAM per instance.
 ## Advanced: Environment-Specific Installations
 
 ### Docker Ollama Only
+
 ```dockerfile
 # Small footprint, no GPU needed
 FROM python:3.11-slim
@@ -193,6 +210,7 @@ RUN uv install agent-rag-mcp[ollama]
 ```
 
 ### Docker with GPU Support
+
 ```dockerfile
 # Larger image, CUDA support
 FROM nvidia/cuda:12.1-runtime-ubuntu22.04

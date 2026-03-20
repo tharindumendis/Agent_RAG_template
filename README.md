@@ -42,24 +42,28 @@ This interactive script guides you through provider selection and runs the appro
 ### Direct Installation
 
 **For Ollama** (lightweight, ~50 MB):
+
 ```bash
 uv install .[ollama]
 python server.py
 ```
 
 **For Local Offline** (ONNX, ~300 MB):
+
 ```bash
 uv install .[local]
 python server.py
 ```
 
 **For GPU** (PyTorch acceleration, ~1.2 GB):
+
 ```bash
 uv install .[gpu]
 python server.py
 ```
 
 **For All Providers** (complete setup):
+
 ```bash
 uv install .[all]
 python server.py
@@ -97,9 +101,9 @@ The embedding provider and collection behavior are configured in `config.yaml`:
 
 ```yaml
 embeddings:
-  provider: "ollama"              # Options: "ollama", "onnx"
-  ollama_base_url: "http://localhost:11434"  # Ollama service URL
-  ollama_model: "nomic-embed-text"  # Ollama embedding model
+  provider: "ollama" # Options: "ollama", "onnx"
+  ollama_base_url: "http://localhost:11434" # Ollama service URL
+  ollama_model: "nomic-embed-text" # Ollama embedding model
 
   # For ONNX provider:
   # model: "all-MiniLM-L6-v2"
@@ -107,7 +111,7 @@ embeddings:
 
 database:
   persist_directory: "./chroma_db"
-  
+
 document_processing:
   chunk_size: 1000
   chunk_overlap: 200

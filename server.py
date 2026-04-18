@@ -90,7 +90,11 @@ def setup_logging(cfg) -> None:
 
 from rag.config_loader import load_config
 
-_cfg = load_config()
+_early_parser = argparse.ArgumentParser(add_help=False)
+_early_parser.add_argument("--config", type=str)
+_early_args, _ = _early_parser.parse_known_args()
+
+_cfg = load_config(_early_args.config)
 setup_logging(_cfg)  # Set up logging based on config
 
 logger = logging.getLogger(__name__)
@@ -347,6 +351,7 @@ def rag_delete_items(
 # ---------------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="RAG MCP Server")
+    p.add_argument("--config", type=str, help="Path to config.yaml", default=None)
     p.add_argument("--transport", choices=["stdio", "sse"], default=_cfg.server.transport)
     p.add_argument("--port", type=int, default=_cfg.server.port)
     p.add_argument("--host", default=_cfg.server.host)

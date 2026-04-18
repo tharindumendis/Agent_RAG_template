@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 [project]
 name            = "agent-rag-mcp"
-version         = "1.1.7"
+version         = "1.1.8"
 description     = "RAG MCP server: ChromaDB + sentence-transformers, exposes ingest/search/list/delete tools."
 readme          = "README.md"
 requires-python = ">=3.10"

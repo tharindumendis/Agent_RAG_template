@@ -24,7 +24,7 @@ embeddings:
   #   ollama_model: "mxbai-embed-large"    # larger but more accurate
 
 store:
-  persist_dir: "./chroma_db" # Uncomment to specify a custom absolute or relative path for ChromaDB
+  persist_dir: "./rag_db" # Uncomment to specify a custom absolute or relative path for ChromaDB
   default_collection: "default" # collection used when none is specified
 
 chunking:

@@ -9,19 +9,25 @@ server:
   host: "0.0.0.0"
 
 embeddings:
-  provider: "ollama"  # "onnx" or "ollama"
-  
+  provider: "openrouter" # "onnx" | "ollama" | "openrouter"
+
   # ONNX provider settings (used when provider: "onnx")
-  model: "all-MiniLM-L6-v2"  # sentence-transformers model (downloads on first run)
-  device: "cpu"  # "cpu" or "cuda" if GPU available
-  
+  model: "all-MiniLM-L6-v2" # sentence-transformers model (downloads on first run)
+  device: "cpu" # "cpu" or "cuda" if GPU available
+
   # Ollama provider settings (used when provider: "ollama")
-  ollama_base_url: "http://localhost:11434"  # Ollama server endpoint
-  ollama_model: "nomic-embed-text"  # lightweight Ollama embedding model
-  
-  # Other options:
-  #   ollama_model: "all-minilm:latest"    # alternative
-  #   ollama_model: "mxbai-embed-large"    # larger but more accurate
+  ollama_base_url: "http://localhost:11434" # Ollama server endpoint
+  ollama_model: "nomic-embed-text" # lightweight Ollama embedding model
+  #   ollama_model: "all-minilm:latest"      # alternative
+  #   ollama_model: "mxbai-embed-large"      # larger but more accurate
+
+  # OpenRouter provider settings (used when provider: "openrouter")
+  # openrouter_api_key: "sk-or-..."          # or set OPENROUTER_API_KEY env var
+  # openrouter_api_key: "" # or set OPENROUTER_API_KEY env var
+  openrouter_model: "nvidia/llama-nemotron-embed-vl-1b-v2:free" # fast, low-cost
+  # openrouter_model: "openai/text-embedding-3-small" # high quality
+  # openrouter_model: "openai/text-embedding-3-large" # highest quality
+  # openrouter_batch_size: 64               # texts per API request (default: 64)
 
 store:
   persist_dir: "./rag_db" # Uncomment to specify a custom absolute or relative path for ChromaDB

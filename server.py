@@ -29,7 +29,9 @@ import threading
 from pathlib import Path
 
 import yaml
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+import dotenv
+dotenv.load_dotenv()
 
 # ---------------------------------------------------------------------------
 
@@ -366,6 +368,9 @@ def main() -> None:
     if provider == 'ollama':
         ollama_model = getattr(_cfg.embeddings, 'ollama_model', 'nomic-embed-text')
         embed_info = f"Ollama ({ollama_model})"
+    elif provider == 'openrouter':
+        or_model = getattr(_cfg.embeddings, 'openrouter_model', 'nvidia/llama-nemotron-embed-vl-1b-v2:free')
+        embed_info = f"OpenRouter ({or_model})"
     else:
         embed_info = f"ONNX ({_EMBED_MODEL})"
     
@@ -413,14 +418,23 @@ def main() -> None:
 
     try:
         if args.transport == "sse":
-            mcp.run(transport="sse", host=args.host, port=args.port)
+            # Pass uvicorn_config so fastmcp uses a short graceful-shutdown
+            # timeout — prevents CancelledError noise on Ctrl+C.
+            mcp.run(
+                transport="sse",
+                host=args.host,
+                port=args.port,
+                uvicorn_config={"timeout_graceful_shutdown": 3},
+            )
         else:
             mcp.run(transport="stdio")
-    except KeyboardInterrupt:
-        logger.info("Shutting down RAG Server...")
+    except (KeyboardInterrupt, SystemExit):
+        pass  # clean stop
     finally:
+        logger.info("Shutting down RAG Server...")
         if watcher:
             watcher.stop()
+        logger.info("RAG Server stopped.")
 
 if __name__ == "__main__":
     main()

@@ -2,8 +2,9 @@
 rag/embedder.py
 ---------------
 Pluggable embedder interface with multiple implementations:
-  - OnnxEmbedder: chromadb's built-in ONNX embedding (no torch/multiprocessing)
-  - OllamaEmbedder: Ollama API-based embedding (lightweight models like nomic-embed-text)
+  - OnnxEmbedder:       chromadb's built-in ONNX embedding (no torch/multiprocessing)
+  - OllamaEmbedder:     Ollama API-based embedding (lightweight models like nomic-embed-text)
+  - OpenRouterEmbedder: OpenRouter API-based embedding (OpenAI-compatible /embeddings endpoint)
 
 At runtime, the embedder is selected based on config.embeddings.provider.
 """
@@ -234,6 +235,154 @@ class OllamaEmbedder(BaseEmbedder):
 
 
 # ============================================================================
+# OpenRouter Embedder
+# ============================================================================
+
+class OpenRouterEmbedder(BaseEmbedder):
+    """
+    Uses the OpenRouter API for embeddings via the OpenAI SDK.
+
+    OpenRouter exposes an OpenAI-compatible ``/api/v1`` base URL.
+    Uses ``client.embeddings.create()`` with multimodal content format,
+    which is required by models like nvidia/llama-nemotron-embed-vl-1b-v2.
+
+    Supported models (examples):
+      - nvidia/llama-nemotron-embed-vl-1b-v2:free  (multimodal, free tier)
+      - mistral/mistral-embed                       (fast, low-cost)
+      - openai/text-embedding-3-small               (high quality)
+      - openai/text-embedding-3-large               (highest quality)
+
+    Config keys (config.yaml → embeddings section):
+      provider:               openrouter
+      openrouter_api_key:     <your-key>   # or set OPENROUTER_API_KEY env var
+      openrouter_model:       nvidia/llama-nemotron-embed-vl-1b-v2:free
+      openrouter_batch_size:  64           # texts per API call (optional, default 64)
+      openrouter_site_url:    ""           # optional, for openrouter.ai rankings
+      openrouter_site_name:   ""           # optional, for openrouter.ai rankings
+    """
+
+    OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "nvidia/llama-nemotron-embed-vl-1b-v2:free",
+        batch_size: int = 64,
+        site_url: str = "",
+        site_name: str = "",
+    ):
+        if not api_key:
+            raise ValueError(
+                "OpenRouter API key is required. "
+                "Set openrouter_api_key in config.yaml or the OPENROUTER_API_KEY env var."
+            )
+        self.api_key = api_key
+        self.model = model
+        self.batch_size = max(1, batch_size)
+        self.site_url = site_url
+        self.site_name = site_name
+        self._lock = threading.Lock()
+        self._client = None  # lazy-initialized OpenAI client
+        logger.info(
+            "[OpenRouterEmbedder] Initialized — model='%s', batch_size=%d",
+            self.model, self.batch_size,
+        )
+
+    def _get_client(self):
+        """Return (and cache) the OpenAI client pointed at OpenRouter. Thread-safe."""
+        if self._client is None:
+            with self._lock:
+                if self._client is None:
+                    try:
+                        from openai import OpenAI
+                    except ImportError as exc:
+                        raise ImportError(
+                            "The 'openai' package is required for OpenRouterEmbedder. "
+                            "Install it with: pip install openai"
+                        ) from exc
+                    self._client = OpenAI(
+                        base_url=self.OPENROUTER_BASE_URL,
+                        api_key=self.api_key,
+                    )
+        return self._client
+
+    def _build_extra_headers(self) -> dict:
+        """Build optional OpenRouter-specific headers for rankings."""
+        headers = {}
+        if self.site_url:
+            headers["HTTP-Referer"] = self.site_url
+        if self.site_name:
+            headers["X-OpenRouter-Title"] = self.site_name
+        return headers
+
+    def _embed_batch(self, batch: list[str]) -> list[list[float]]:
+        """
+        Send a single batch to the OpenRouter embeddings endpoint.
+
+        Uses the multimodal content format required by vision-language
+        embedding models (e.g. nvidia/llama-nemotron-embed-vl-1b-v2).
+        Plain-text models also accept this format transparently.
+        """
+        client = self._get_client()
+        extra_headers = self._build_extra_headers()
+
+        # Build multimodal content input — each text wrapped in a content block
+        multimodal_input = [
+            {
+                "content": [
+                    {"type": "text", "text": text}
+                ]
+            }
+            for text in batch
+        ]
+
+        response = client.embeddings.create(
+            extra_headers=extra_headers if extra_headers else None,
+            model=self.model,
+            input=multimodal_input,
+            encoding_format="float",
+        )
+
+        # OpenAI-compatible response: response.data sorted by .index
+        items = sorted(response.data, key=lambda d: d.index)
+        return [list(item.embedding) for item in items]
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """Embed a list of text strings via OpenRouter API."""
+        if not texts:
+            return []
+
+        logger.info(
+            "[OpenRouterEmbedder] Embedding %d texts with model '%s' ...",
+            len(texts), self.model,
+        )
+        t0 = time.time()
+        all_embeddings: list[list[float]] = []
+
+        # Process in batches to respect rate/size limits
+        for start in range(0, len(texts), self.batch_size):
+            batch = texts[start : start + self.batch_size]
+            try:
+                batch_vectors = self._embed_batch(batch)
+            except Exception as exc:
+                logger.error("[OpenRouterEmbedder] Error embedding batch: %s", exc)
+                raise
+            all_embeddings.extend(batch_vectors)
+
+        logger.info(
+            "[OpenRouterEmbedder] Embedded %d texts in %.2fs.",
+            len(texts), time.time() - t0,
+        )
+        return all_embeddings
+
+    def prewarm(self) -> None:
+        """Validate connectivity by embedding a dummy string."""
+        logger.info("[OpenRouterEmbedder] Pre-warming — testing API connectivity ...")
+        self._embed_batch(["warmup"])
+        logger.info("[OpenRouterEmbedder] Pre-warm complete.")
+
+
+# ============================================================================
 # Factory & Global State
 # ============================================================================
 
@@ -244,9 +393,12 @@ _embedder_lock = threading.Lock()
 def get_embedder(config=None) -> BaseEmbedder:
     """
     Get or create the embedder based on config.
-    
+
     If config is None, imports and uses the global config.
-    Returns the appropriate embedder (ONNX or Ollama) based on config.embeddings.provider.
+    Returns the appropriate embedder based on config.embeddings.provider:
+      - "onnx"        → OnnxEmbedder (default)
+      - "ollama"      → OllamaEmbedder
+      - "openrouter"  → OpenRouterEmbedder
     """
     global _embedder
 
@@ -269,6 +421,29 @@ def get_embedder(config=None) -> BaseEmbedder:
             model = getattr(config.embeddings, 'ollama_model', 'nomic-embed-text')
             logger.info("[Embedder] Using Ollama provider: model='%s', url='%s'", model, base_url)
             _embedder = OllamaEmbedder(base_url=base_url, model=model)
+
+        elif provider == 'openrouter':
+            # API key: prefer config field, fall back to env var
+            api_key = (
+                getattr(config.embeddings, 'openrouter_api_key', None)
+                or os.environ.get('OPENROUTER_API_KEY', '')
+            )
+            model = getattr(config.embeddings, 'openrouter_model', 'nvidia/llama-nemotron-embed-vl-1b-v2:free')
+            batch_size = int(getattr(config.embeddings, 'openrouter_batch_size', 64))
+            site_url = getattr(config.embeddings, 'openrouter_site_url', '')
+            site_name = getattr(config.embeddings, 'openrouter_site_name', '')
+            logger.info(
+                "[Embedder] Using OpenRouter provider: model='%s', batch_size=%d",
+                model, batch_size,
+            )
+            _embedder = OpenRouterEmbedder(
+                api_key=api_key,
+                model=model,
+                batch_size=batch_size,
+                site_url=site_url,
+                site_name=site_name,
+            )
+
         else:
             logger.info("[Embedder] Using ONNX provider (default)")
             _embedder = OnnxEmbedder()

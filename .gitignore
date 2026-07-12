@@ -2,7 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+/rag_db/
+.venv
+.venv/
+/docs/
 # C extensions
 *.so
 

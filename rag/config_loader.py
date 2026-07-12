@@ -47,11 +47,18 @@ class ServerConfig:
 
 @dataclass
 class EmbeddingsConfig:
-    provider: str = "onnx"  # "onnx" or "ollama"
+    provider: str = "onnx"  # "onnx" | "ollama" | "openrouter"
     model: str = "all-MiniLM-L6-v2"  # used by sentence-transformers/ONNX
     device: str = "cpu"  # "cpu" or "cuda" for ONNX
+    # Ollama provider settings
     ollama_base_url: str = "http://localhost:11434"  # Ollama server endpoint
     ollama_model: str = "nomic-embed-text"  # lightweight Ollama embedding model
+    # OpenRouter provider settings
+    openrouter_api_key: str = ""  # or set OPENROUTER_API_KEY env var
+    openrouter_model: str = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
+    openrouter_batch_size: int = 64  # texts per API request
+    openrouter_site_url: str = ""   # optional, for openrouter.ai rankings
+    openrouter_site_name: str = ""  # optional, for openrouter.ai rankings
 
 
 @dataclass
@@ -254,8 +261,15 @@ def load_config(config_path: str | None = None) -> AppConfig:
         provider=emb_raw.get("provider", "onnx"),
         model=emb_raw.get("model", "all-MiniLM-L6-v2"),
         device=emb_raw.get("device", "cpu"),
+        # Ollama
         ollama_base_url=emb_raw.get("ollama_base_url", "http://localhost:11434"),
         ollama_model=emb_raw.get("ollama_model", "nomic-embed-text"),
+        # OpenRouter
+        openrouter_api_key=emb_raw.get("openrouter_api_key", ""),
+        openrouter_model=emb_raw.get("openrouter_model", "nvidia/llama-nemotron-embed-vl-1b-v2:free"),
+        openrouter_batch_size=int(emb_raw.get("openrouter_batch_size", 64)),
+        openrouter_site_url=emb_raw.get("openrouter_site_url", ""),
+        openrouter_site_name=emb_raw.get("openrouter_site_name", ""),
     )
 
     # --- Store ---
